@@ -46,7 +46,7 @@
 | レガシーバイナリ | `.doc`, `.xls`, `.ppt`（LibreOffice 経由） |
 | その他 | `.pdf`, `.txt`, `.md` |
 
-スキャンされた PDF ページは自動検出され、上限付きプロセスプール内の Tesseract で OCR されます（`OCR_ENABLED`、「設定」参照）。`OCR_REJECT_SCANNED=true` の場合、OCR せずにスキャンページを含むドキュメント全体を拒否します。テキストのみのドキュメントを先に高速でインデックスしたい場合に有効です。
+スキャンされた PDF ページは自動検出され、上限付きプロセスプール内の RapidOCR（ONNX、CPU）で OCR されます（`OCR_ENABLED`、「設定」参照）。`OCR_REJECT_SCANNED=true` の場合、OCR せずにスキャンページを含むドキュメント全体を拒否します。テキストのみのドキュメントを先に高速でインデックスしたい場合に有効です。
 
 ## クイックスタート
 
@@ -213,7 +213,7 @@ Swagger UI: `http://localhost:8889/docs`
 バッチがアップロードされると、バックグラウンドタスクがファイルごとに以下のパイプラインを実行します:
 
 1. **アップロード** -- ファイルを OS の一時ファイル（`tempfile.mkstemp`）へストリーム保存。元のバイト列が `storage/uploads/` 配下に書かれることはありません。ストリーム中に SHA-256 を計算。
-2. **抽出** -- 形式に応じたエクストラクタ（docx、pdf など）でテキストを抽出。スキャン PDF ページは検出のうえ OCR（Tesseract プロセスプール）されます（OCR 無効時を除く）。
+2. **抽出** -- 形式に応じたエクストラクタ（docx、pdf など）でテキストを抽出。スキャン PDF ページは検出のうえ OCR（RapidOCR プロセスプール）されます（OCR 無効時を除く）。
 3. **チャンク化** -- テキストを 800 トークン・100 トークン重複で分割（tiktoken `cl100k_base`）。
 4. **埋め込み** -- チャンクを Azure OpenAI で埋め込み（1536 次元、バッチ処理、`EMBED_MAX_INFLIGHT_BATCHES` で上限制御）。
 5. **インデックス** -- チャンクをベクトル + メタデータ付きで Azure AI Search へ登録（`SEARCH_MAX_INFLIGHT_UPLOADS` で上限制御）。
@@ -262,7 +262,7 @@ SQLAlchemy + Alembic による SQLite（[app/db/models.py](app/db/models.py)）�
 | `INGEST_CONCURRENCY` | 2 | バックグラウンド取り込みタスクの最大並列数 |
 | `EMBED_MAX_INFLIGHT_BATCHES` | 4 | 同時埋め込みバッチの上限（Azure TPM 保護） |
 | `SEARCH_MAX_INFLIGHT_UPLOADS` | 4 | 同時インデックス登録バッチの上限 |
-| `OCR_ENABLED` | true | スキャン PDF ページの OCR（Tesseract） |
+| `OCR_ENABLED` | true | スキャン PDF ページの OCR（RapidOCR） |
 | `OCR_WORKERS` | 6 | OCR プロセスプールのサイズ |
 | `OCR_REJECT_SCANNED` | false | OCR せずスキャンページを含むドキュメントを拒否 |
 | `ENABLE_SEMANTIC_RANKING` | true | セマンティックリランカーを使用（Standard S1 以上が必要） |
@@ -280,7 +280,7 @@ app/
     config.py                  対応拡張子、アップロード上限
     dispatcher.py              拡張子 -> エクストラクタのルーティング
     scan_detect.py             PDF のスキャンページ検出
-    ocr.py                     Tesseract OCR（プロセスプール）
+    ocr.py                     RapidOCR OCR（プロセスプール）
     schemas.py                 ExtractionResponse モデル
     extractors/                ファイル形式ごとのモジュール
     services/libreoffice.py    soffice サブプロセスラッパー

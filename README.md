@@ -46,7 +46,7 @@ A FastAPI service that ingests documents, extracts text (with OCR for scanned PD
 | Legacy binary | `.doc`, `.xls`, `.ppt` (via LibreOffice) |
 | Other | `.pdf`, `.txt`, `.md` |
 
-Scanned PDF pages are detected and OCR'd with Tesseract in a bounded process pool (`OCR_ENABLED`, see Configuration). With `OCR_REJECT_SCANNED=true` the detector instead rejects any document containing a scanned page — useful for a fast text-only first pass.
+Scanned PDF pages are detected and OCR'd with RapidOCR (ONNX, CPU) in a bounded process pool (`OCR_ENABLED`, see Configuration). With `OCR_REJECT_SCANNED=true` the detector instead rejects any document containing a scanned page — useful for a fast text-only first pass.
 
 ## Quick start
 
@@ -213,7 +213,7 @@ Query embedding runs on a priority lane: it never queues behind bulk-ingest embe
 When a batch is uploaded, a background task runs this pipeline per file:
 
 1. **Upload** -- file streamed to an OS temp file (via `tempfile.mkstemp`); source bytes are never written under `storage/uploads/`. SHA-256 computed during the stream.
-2. **Extract** -- text extracted using the appropriate extractor (docx, pdf, etc.). Scanned PDF pages are detected and OCR'd (Tesseract process pool) unless OCR is disabled.
+2. **Extract** -- text extracted using the appropriate extractor (docx, pdf, etc.). Scanned PDF pages are detected and OCR'd (RapidOCR process pool) unless OCR is disabled.
 3. **Chunk** -- text split into 800-token chunks with 100-token overlap (tiktoken `cl100k_base`).
 4. **Embed** -- chunks embedded via Azure OpenAI (1536 dims, batched, bounded by `EMBED_MAX_INFLIGHT_BATCHES`).
 5. **Index** -- chunks pushed to Azure AI Search with vector + metadata (bounded by `SEARCH_MAX_INFLIGHT_UPLOADS`).
@@ -262,7 +262,7 @@ All settings are in `.env` / `.env.dev`, read by [app/settings.py](app/settings.
 | `INGEST_CONCURRENCY` | 2 | Max parallel background ingest tasks |
 | `EMBED_MAX_INFLIGHT_BATCHES` | 4 | Cap on concurrent embedding batches (Azure TPM guard) |
 | `SEARCH_MAX_INFLIGHT_UPLOADS` | 4 | Cap on concurrent index upload batches |
-| `OCR_ENABLED` | true | OCR scanned PDF pages (Tesseract) |
+| `OCR_ENABLED` | true | OCR scanned PDF pages (RapidOCR) |
 | `OCR_WORKERS` | 6 | OCR process pool size |
 | `OCR_REJECT_SCANNED` | false | Reject docs containing scanned pages instead of OCR-ing |
 | `ENABLE_SEMANTIC_RANKING` | true | Use semantic reranker (needs Standard S1+) |
@@ -280,7 +280,7 @@ app/
     config.py                  Supported extensions, upload limit
     dispatcher.py              Extension -> Extractor routing
     scan_detect.py             Scanned-page detection for PDFs
-    ocr.py                     Tesseract OCR (process pool)
+    ocr.py                     RapidOCR OCR (process pool)
     schemas.py                 ExtractionResponse model
     extractors/                One module per file type
     services/libreoffice.py    soffice subprocess wrapper

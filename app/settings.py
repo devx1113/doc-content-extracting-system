@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     search_max_inflight_uploads: int = 4
 
     # ---- OCR ----
-    # Tesseract-based OCR for scanned PDF pages. Process pool sized to leave
+    # RapidOCR-based OCR (ONNX, CPU) for scanned PDF pages. Process pool sized to leave
     # CPU headroom for the rest of the pipeline (chunker tokenization, asyncio
     # loop, concurrent text-PDF extracts) — without that headroom OCR would
     # contend with non-scanned docs and erase the "no regression for text
